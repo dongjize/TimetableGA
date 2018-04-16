@@ -1,0 +1,17 @@
+{
+  "name": "timetable",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jize",
+  "license": "ISC",
+  "dependencies": {
+    "genetic-js": "^0.1.14"
+  }
+}

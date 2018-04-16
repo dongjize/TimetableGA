@@ -1,0 +1,488 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title></title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="apple-touch-icon" href="icon.png">
+    <!-- Place favicon.ico in the root directory -->
+
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+    <!--[if lte IE 9]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+        <![endif]-->
+
+    <!-- Add your site or application content here -->
+    <script src="js/vendor/modernizr-3.5.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        crossorigin="anonymous"></script>
+    <script>window.jQuery || document.write('<script src="js/vendor/jquery-3.2.1.min.js"><\/script>')</script>
+    <script src="js/plugins.js"></script>
+    <script src="js/genetic.js"></script>
+    <script src="js/genetic-0.1.14.js"></script>
+
+    <form>
+        <select>
+            <option value="volvo">Volvo</option>
+            <option value="saab">Saab</option>
+            <option value="mercedes">Mercedes</option>
+            <option value="audi">Audi</option>
+        </select>
+        <select>
+            <option value="volvo">Volvo</option>
+            <option value="saab">Saab</option>
+            <option value="mercedes">Mercedes</option>
+            <option value="audi">Audi</option>
+        </select>
+        <br/>
+        <input type="checkbox">teacher 1</input>
+        <input type="checkbox">teacher 2</input>
+        <input type="checkbox">teacher 3</input>
+        <input type="checkbox">teacher 4</input>
+        <input type="checkbox">teacher 5</input>
+        <br/>
+        <button id="solve" type="button">confirm</button>
+    </form>
+
+    <script>
+        var genetic = Genetic.create();
+        genetic.optimize = Genetic.Optimize.Maximize;
+        genetic.select1 = Genetic.Select1.Tournament2;
+        genetic.select2 = Genetic.Select2.Tournament3;
+
+        genetic.seed = function () {
+            var timetable = this.userData["timetable"];
+            if (timetable == undefined) {
+                return;
+            }
+            function recursive(slots, index) {
+                if (slots[index].status != 0) {
+                    return recursive(slots, Math.floor(Math.random() * slots.length));
+                }
+                return slots[index];
+            }
+
+            var slots = [];
+            for (var i = 0; i < timetable.length; i++) {
+                var slot = recursive(timetable[i], Math.floor(Math.random() * timetable[i].length));
+                slots.push(slot);
+            }
+            return slots;
+        };
+        genetic.fitness = function (entity) {
+            var fitness = 0;
+            var timetable = this.userData["timetable"];
+            var isScheduleFeasible = this.userData["isScheduleFeasible"];
+            if (!isScheduleFeasible(entity, timetable)) {
+                return 0;
+            }
+            var first = entity[0];
+            var last = entity[0];
+            for (var i = 1; i < entity.length; i++) {
+                if (entity[i].time < first.time) {
+                    first = entity[i];
+                } else if (entity[i].time > last.time) {
+                    last = entity[i];
+                }
+            }
+            fitness = 100 / (Math.floor((new Date(last.time) - new Date(first.time)) / 1000 / 60));
+            return fitness;
+        };
+        genetic.crossover = function (mother, father) {
+            var timetable = this.userData["timetable"];
+            var len = timetable.length;
+            var ca = Math.floor(Math.random() * len);
+            var cb = Math.floor(Math.random() * len);
+            if (ca > cb) {
+                var tmp = cb;
+                cb = ca;
+                ca = tmp;
+            }
+            var son = father
+                .slice(0, ca)
+                .concat(mother.slice(ca, cb))
+                .concat(father.slice(cb, len));
+            var daughter = mother
+                .slice(0, ca)
+                .concat(father.slice(ca, cb))
+                .concat(mother.slice(cb, len));
+            return [son, daughter];
+        };
+        genetic.mutate = function (entity) {
+            var timetable = this.userData["timetable"];
+            var isScheduleFeasible = this.userData["isScheduleFeasible"];
+            function replaceSlot(arr, i, slot) {
+                return arr
+                    .slice(0, i)
+                    .concat(slot)
+                    .concat(arr.slice(i + 1, arr.length));
+            }
+
+            var mutateIndex = Math.floor(Math.random() * entity.length);
+            var randomIndex = Math.floor(Math.random() * timetable[0].length);
+
+            var mutatedSchedule = replaceSlot(
+                entity,
+                mutateIndex,
+                timetable[mutateIndex][randomIndex]
+            );
+            return isScheduleFeasible(mutatedSchedule) ? mutatedSchedule : entity;
+            // return mutatedSchedule;
+        };
+        genetic.generation = function (pop, generation, stats) {
+            // console.log(pop);
+            // console.log(generation);
+        };
+        genetic.notification = function (pop, generation, stats, isFinished) {
+            if (isFinished) {
+                if (pop[0]["fitness"] == 0) {
+                    console.log("no result!!!");
+                } else {
+                    console.log(pop[0]);
+                }
+            }
+        };
+
+        /**
+         * Return a subarray of the primary timetable, according to startTime and endTime
+         * @param {Array} rawTimetable the primitive timetable retrieved
+         * @param {*} startTime parent's start time
+         * @param {*} endTime parent's end time
+         */
+        function pruneTimetable(rawTimetable, startTime, endTime, timetable) {
+            var startIndex = 0;
+            var endIndex = rawTimetable[0].length - 1;
+            for (var i = 0; i < rawTimetable[0].length; i++) {
+                if (rawTimetable[0][i].time >= startTime) {
+                    startIndex = i;
+                    break;
+                }
+            }
+
+            for (var j = rawTimetable[0].length - 1; j > startIndex - 1; j--) {
+                if (endTime >= rawTimetable[0][j].time && (endTime - rawTimetable[0][j].time) / 1000 / 60 <= 7) {
+                    endIndex = j;
+                    break;
+                }
+            }
+
+            for (idx = 0; idx < rawTimetable.length; idx++) {
+                timetable[idx] = rawTimetable[idx].slice(startIndex, endIndex);
+            }
+        }
+
+        /**
+         * The required meetings are prior to optional meetings.
+         * Then, the teachers with fewer slots are prior to those with more slots.
+         * @param {Array} timetable
+         */
+        function prioritizeMeetings(timetable) {
+            timetable.sort(function (t1, t2) {
+                if (t1[0].teacher.required !== t2[0].teacher.required) {
+                    return t2[0].teacher.required - t1[0].teacher.required; //decend
+                } else {
+                    var c1 = countAvailableSlotsForTeacher(t1);
+                    var c2 = countAvailableSlotsForTeacher(t2);
+                    return c2 - c1; //decend
+                }
+            });
+        }
+
+        function countAvailableSlotsForTeacher(teacherTimes) {
+            var count = 0;
+            for (var i = 0; i < teacherTimes.length; i++) {
+                if (teacherTimes[i].status === 0) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+
+        /**
+         * First check the time interval constraint;
+         * then check through the timetable whether they're available
+         * @param {Array} selectedSlots
+         * @param {Array} timetable
+         */
+        function isScheduleFeasible(selectedSlots, timetable) {
+            for (var i = 0; i < selectedSlots.length; i++) {
+                if (selectedSlots[i] == undefined) {
+                    // selectedSlots.splice(i, 1);
+                    // break;
+                    return false;
+                }
+            }
+            if (selectedSlots.length < 1) {
+                return false;
+            }
+            if (timetable == undefined) {
+                return false;
+            }
+
+            // sort the selected slots by time (ascending)
+            selectedSlots.sort(function (slot1, slot2) {
+                var value1 = new Date(slot1.time);
+                var value2 = new Date(slot2.time);
+                return value1 - value2;
+            });
+            // If violates time interval constraint, return false
+            for (var i = 1; i < selectedSlots.length; i++) {
+                if (
+                    Math.abs(Math.floor((new Date(selectedSlots[i].time) - new Date(selectedSlots[i - 1].time)) / 1000 / 60)) <= 7
+                ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function TimeSlot(id, teacher, time, duration, status, parent) {
+            this.id = id;
+            this.teacher = teacher;
+            this.time = new Date(time);
+            this.duration = duration;
+            this.status = status; // -1: none; 0: available; 1: taken
+            this.parent = parent; // if taken, not null; else, null
+        }
+
+        function Teacher(id, name, required) {
+            this.id = id;
+            this.name = name;
+            this.required = required;
+        }
+
+        function Parent(id, name) {
+            this.id = id;
+            this.name = name;
+        }
+
+
+        $(document).ready(function () {
+
+            var teachers = ["Vince", "Julie", "George", "Marjan", "Elizabeth"];
+            var teacher1 = new Teacher(1, "Vince", false);
+            var teacher2 = new Teacher(2, "Julie", true);
+            var teacher3 = new Teacher(3, "George", false);
+            var teacher4 = new Teacher(4, "Narjan", true);
+            var teacher5 = new Teacher(5, "Elizabeth", false);
+
+            var parent = new Parent(12345, "Test");
+
+            var rawTimetable = [];
+            var teacher1Time = [
+                new TimeSlot("2018030801001", teacher1, "2018-03-08 16:00", 7, 0, null),
+                new TimeSlot("2018030801002", teacher1, "2018-03-08 16:07", 7, 0, null),
+                new TimeSlot("2018030801003", teacher1, "2018-03-08 16:14", 7, 0, null),
+                new TimeSlot("2018030801004", teacher1, "2018-03-08 16:21", 7, 0, null),
+                new TimeSlot("2018030801005", teacher1, "2018-03-08 16:28", 7, 0, null),
+                new TimeSlot("2018030801006", teacher1, "2018-03-08 16:35", 7, 0, null),
+                new TimeSlot("2018030801007", teacher1, "2018-03-08 16:42", 7, 0, null),
+                new TimeSlot("2018030801008", teacher1, "2018-03-08 16:49", 7, 0, null),
+                new TimeSlot("2018030801009", teacher1, "2018-03-08 16:56", 7, 0, null),
+                new TimeSlot("2018030801010", teacher1, "2018-03-08 17:03", 7, 0, null),
+                new TimeSlot("2018030801011", teacher1, "2018-03-08 17:10", 7, 0, null),
+                new TimeSlot("2018030801012", teacher1, "2018-03-08 17:17", 7, 0, null),
+                new TimeSlot("2018030801013", teacher1, "2018-03-08 17:24", 7, 0, null),
+                new TimeSlot("2018030801014", teacher1, "2018-03-08 17:31", 7, 0, null),
+                new TimeSlot("2018030801015", teacher1, "2018-03-08 17:38", 7, 0, null),
+                new TimeSlot("2018030801016", teacher1, "2018-03-08 17:45", 7, 0, null),
+                new TimeSlot("2018030801017", teacher1, "2018-03-08 17:52", 7, -1, null),
+                new TimeSlot("2018030801018", teacher1, "2018-03-08 17:59", 7, -1, null),
+                new TimeSlot("2018030801019", teacher1, "2018-03-08 18:06", 7, -1, null),
+                new TimeSlot("2018030801020", teacher1, "2018-03-08 18:13", 7, -1, null),
+                new TimeSlot("2018030801021", teacher1, "2018-03-08 18:20", 7, -1, null),
+                new TimeSlot("2018030801022", teacher1, "2018-03-08 18:27", 7, -1, null),
+                new TimeSlot("2018030801023", teacher1, "2018-03-08 18:34", 7, 0, null),
+                new TimeSlot("2018030801024", teacher1, "2018-03-08 18:41", 7, 0, null),
+                new TimeSlot("2018030801025", teacher1, "2018-03-08 18:48", 7, 0, null),
+                new TimeSlot("2018030801026", teacher1, "2018-03-08 18:55", 7, 0, null),
+                new TimeSlot("2018030801027", teacher1, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030801028", teacher1, "2018-03-08 19:09", 7, 0, null),
+                new TimeSlot("2018030801029", teacher1, "2018-03-08 19:16", 7, 0, null),
+                new TimeSlot("2018030801030", teacher1, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030801031", teacher1, "2018-03-08 19:23", 7, 0, null),
+                new TimeSlot("2018030801032", teacher1, "2018-03-08 19:30", 7, 0, null)
+            ];
+            var teacher2Time = [
+                new TimeSlot("2018030802001", teacher2, "2018-03-08 16:00", 7, 0, null),
+                new TimeSlot("2018030802002", teacher2, "2018-03-08 16:07", 7, 0, null),
+                new TimeSlot("2018030802003", teacher2, "2018-03-08 16:14", 7, 0, null),
+                new TimeSlot("2018030802004", teacher2, "2018-03-08 16:21", 7, 0, null),
+                new TimeSlot("2018030802005", teacher2, "2018-03-08 16:28", 7, 0, null),
+                new TimeSlot("2018030802006", teacher2, "2018-03-08 16:35", 7, 0, null),
+                new TimeSlot("2018030802007", teacher2, "2018-03-08 16:42", 7, 0, null),
+                new TimeSlot("2018030802008", teacher2, "2018-03-08 16:49", 7, 0, null),
+                new TimeSlot("2018030802009", teacher2, "2018-03-08 16:56", 7, 0, null),
+                new TimeSlot("2018030802010", teacher2, "2018-03-08 17:03", 7, 0, null),
+                new TimeSlot("2018030802011", teacher2, "2018-03-08 17:10", 7, 0, null),
+                new TimeSlot("2018030802012", teacher2, "2018-03-08 17:17", 7, 0, null),
+                new TimeSlot("2018030802013", teacher2, "2018-03-08 17:24", 7, 0, null),
+                new TimeSlot("2018030802014", teacher2, "2018-03-08 17:31", 7, 0, null),
+                new TimeSlot("2018030802015", teacher2, "2018-03-08 17:38", 7, 0, null),
+                new TimeSlot("2018030802016", teacher2, "2018-03-08 17:45", 7, 0, null),
+                new TimeSlot("2018030802017", teacher2, "2018-03-08 17:52", 7, -1, null),
+                new TimeSlot("2018030802018", teacher2, "2018-03-08 17:59", 7, -1, null),
+                new TimeSlot("2018030802019", teacher2, "2018-03-08 18:06", 7, -1, null),
+                new TimeSlot("2018030802020", teacher2, "2018-03-08 18:13", 7, -1, null),
+                new TimeSlot("2018030802021", teacher2, "2018-03-08 18:20", 7, -1, null),
+                new TimeSlot("2018030802022", teacher2, "2018-03-08 18:27", 7, -1, null),
+                new TimeSlot("2018030802023", teacher2, "2018-03-08 18:34", 7, 0, null),
+                new TimeSlot("2018030802024", teacher2, "2018-03-08 18:41", 7, 0, null),
+                new TimeSlot("2018030802025", teacher2, "2018-03-08 18:48", 7, 0, null),
+                new TimeSlot("2018030802026", teacher2, "2018-03-08 18:55", 7, 0, null),
+                new TimeSlot("2018030802027", teacher2, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030802028", teacher2, "2018-03-08 19:09", 7, 0, null),
+                new TimeSlot("2018030802029", teacher2, "2018-03-08 19:16", 7, 0, null),
+                new TimeSlot("2018030802030", teacher2, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030802031", teacher2, "2018-03-08 19:23", 7, 0, null),
+                new TimeSlot("2018030802032", teacher2, "2018-03-08 19:30", 7, 0, null)
+            ];
+
+            var teacher3Time = [
+                new TimeSlot("2018030803001", teacher3, "2018-03-08 16:00", 7, -1, null),
+                new TimeSlot("2018030803002", teacher3, "2018-03-08 16:07", 7, -1, null),
+                new TimeSlot("2018030803003", teacher3, "2018-03-08 16:14", 7, -1, null),
+                new TimeSlot("2018030803004", teacher3, "2018-03-08 16:21", 7, -1, null),
+                new TimeSlot("2018030803005", teacher3, "2018-03-08 16:28", 7, -1, null),
+                new TimeSlot("2018030803006", teacher3, "2018-03-08 16:35", 7, -1, null),
+                new TimeSlot("2018030803007", teacher3, "2018-03-08 16:42", 7, -1, null),
+                new TimeSlot("2018030803008", teacher3, "2018-03-08 16:49", 7, 0, null),
+                new TimeSlot("2018030803009", teacher3, "2018-03-08 16:56", 7, 0, null),
+                new TimeSlot("2018030803010", teacher3, "2018-03-08 17:03", 7, 0, null),
+                new TimeSlot("2018030803011", teacher3, "2018-03-08 17:10", 7, 0, null),
+                new TimeSlot("2018030803012", teacher3, "2018-03-08 17:17", 7, 0, null),
+                new TimeSlot("2018030803013", teacher3, "2018-03-08 17:24", 7, 0, null),
+                new TimeSlot("2018030803014", teacher3, "2018-03-08 17:31", 7, 0, null),
+                new TimeSlot("2018030803015", teacher3, "2018-03-08 17:38", 7, 0, null),
+                new TimeSlot("2018030803016", teacher3, "2018-03-08 17:45", 7, 0, null),
+                new TimeSlot("2018030803017", teacher3, "2018-03-08 17:52", 7, 0, null),
+                new TimeSlot("2018030803018", teacher3, "2018-03-08 17:59", 7, 0, null),
+                new TimeSlot("2018030803019", teacher3, "2018-03-08 18:06", 7, -1, null),
+                new TimeSlot("2018030803020", teacher3, "2018-03-08 18:13", 7, -1, null),
+                new TimeSlot("2018030803021", teacher3, "2018-03-08 18:20", 7, -1, null),
+                new TimeSlot("2018030803022", teacher3, "2018-03-08 18:27", 7, -1, null),
+                new TimeSlot("2018030803023", teacher3, "2018-03-08 18:34", 7, 0, null),
+                new TimeSlot("2018030803024", teacher3, "2018-03-08 18:41", 7, 0, null),
+                new TimeSlot("2018030803025", teacher3, "2018-03-08 18:48", 7, 0, null),
+                new TimeSlot("2018030803026", teacher3, "2018-03-08 18:55", 7, 0, null),
+                new TimeSlot("2018030803027", teacher3, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030803028", teacher3, "2018-03-08 19:09", 7, 0, null),
+                new TimeSlot("2018030803029", teacher3, "2018-03-08 19:16", 7, 0, null),
+                new TimeSlot("2018030803030", teacher3, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030803031", teacher3, "2018-03-08 19:23", 7, 0, null),
+                new TimeSlot("2018030803032", teacher3, "2018-03-08 19:30", 7, 0, null)
+            ];
+
+            var teacher4Time = [
+                new TimeSlot("2018030804001", teacher4, "2018-03-08 16:00", 7, 0, null),
+                new TimeSlot("2018030804002", teacher4, "2018-03-08 16:07", 7, 0, null),
+                new TimeSlot("2018030804003", teacher4, "2018-03-08 16:14", 7, 0, null),
+                new TimeSlot("2018030804004", teacher4, "2018-03-08 16:21", 7, 0, null),
+                new TimeSlot("2018030804005", teacher4, "2018-03-08 16:28", 7, 0, null),
+                new TimeSlot("2018030804006", teacher4, "2018-03-08 16:35", 7, 0, null),
+                new TimeSlot("2018030804007", teacher4, "2018-03-08 16:42", 7, 0, null),
+                new TimeSlot("2018030804008", teacher4, "2018-03-08 16:49", 7, 0, null),
+                new TimeSlot("2018030804009", teacher4, "2018-03-08 16:56", 7, 0, null),
+                new TimeSlot("2018030804010", teacher4, "2018-03-08 17:03", 7, 0, null),
+                new TimeSlot("2018030804011", teacher4, "2018-03-08 17:10", 7, 0, null),
+                new TimeSlot("2018030804012", teacher4, "2018-03-08 17:17", 7, 0, null),
+                new TimeSlot("2018030804013", teacher4, "2018-03-08 17:24", 7, 0, null),
+                new TimeSlot("2018030804014", teacher4, "2018-03-08 17:31", 7, 0, null),
+                new TimeSlot("2018030804015", teacher4, "2018-03-08 17:38", 7, 0, null),
+                new TimeSlot("2018030804016", teacher4, "2018-03-08 17:45", 7, 0, null),
+                new TimeSlot("2018030804017", teacher4, "2018-03-08 17:52", 7, 0, null),
+                new TimeSlot("2018030804018", teacher4, "2018-03-08 17:59", 7, 0, null),
+                new TimeSlot("2018030804019", teacher4, "2018-03-08 18:06", 7, -1, null),
+                new TimeSlot("2018030804020", teacher4, "2018-03-08 18:13", 7, -1, null),
+                new TimeSlot("2018030804021", teacher4, "2018-03-08 18:20", 7, -1, null),
+                new TimeSlot("2018030804022", teacher4, "2018-03-08 18:27", 7, -1, null),
+                new TimeSlot("2018030804023", teacher4, "2018-03-08 18:34", 7, -1, null),
+                new TimeSlot("2018030804024", teacher4, "2018-03-08 18:41", 7, 0, null),
+                new TimeSlot("2018030804025", teacher4, "2018-03-08 18:48", 7, 0, null),
+                new TimeSlot("2018030804026", teacher4, "2018-03-08 18:55", 7, 0, null),
+                new TimeSlot("2018030804027", teacher4, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030804028", teacher4, "2018-03-08 19:09", 7, 0, null),
+                new TimeSlot("2018030804029", teacher4, "2018-03-08 19:16", 7, 0, null),
+                new TimeSlot("2018030804030", teacher4, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030804031", teacher4, "2018-03-08 19:23", 7, 0, null),
+                new TimeSlot("2018030804032", teacher4, "2018-03-08 19:30", 7, 0, null)
+            ];
+
+            var teacher5Time = [
+                new TimeSlot("2018030805001", teacher5, "2018-03-08 16:00", 7, 0, null),
+                new TimeSlot("2018030805002", teacher5, "2018-03-08 16:07", 7, 0, null),
+                new TimeSlot("2018030805003", teacher5, "2018-03-08 16:14", 7, 0, null),
+                new TimeSlot("2018030805004", teacher5, "2018-03-08 16:21", 7, 0, null),
+                new TimeSlot("2018030805005", teacher5, "2018-03-08 16:28", 7, 0, null),
+                new TimeSlot("2018030805006", teacher5, "2018-03-08 16:35", 7, 0, null),
+                new TimeSlot("2018030805007", teacher5, "2018-03-08 16:42", 7, 0, null),
+                new TimeSlot("2018030805008", teacher5, "2018-03-08 16:49", 7, 0, null),
+                new TimeSlot("2018030805009", teacher5, "2018-03-08 16:56", 7, 0, null),
+                new TimeSlot("2018030805010", teacher5, "2018-03-08 17:03", 7, 0, null),
+                new TimeSlot("2018030805011", teacher5, "2018-03-08 17:10", 7, 0, null),
+                new TimeSlot("2018030805012", teacher5, "2018-03-08 17:17", 7, 0, null),
+                new TimeSlot("2018030805013", teacher5, "2018-03-08 17:24", 7, 0, null),
+                new TimeSlot("2018030805014", teacher5, "2018-03-08 17:31", 7, 0, null),
+                new TimeSlot("2018030805015", teacher5, "2018-03-08 17:38", 7, 0, null),
+                new TimeSlot("2018030805016", teacher5, "2018-03-08 17:45", 7, 0, null),
+                new TimeSlot("2018030805017", teacher5, "2018-03-08 17:52", 7, 0, null),
+                new TimeSlot("2018030805018", teacher5, "2018-03-08 17:59", 7, 0, null),
+                new TimeSlot("2018030805019", teacher5, "2018-03-08 18:06", 7, -1, null),
+                new TimeSlot("2018030805020", teacher5, "2018-03-08 18:13", 7, -1, null),
+                new TimeSlot("2018030805021", teacher5, "2018-03-08 18:20", 7, -1, null),
+                new TimeSlot("2018030805022", teacher5, "2018-03-08 18:27", 7, -1, null),
+                new TimeSlot("2018030805023", teacher5, "2018-03-08 18:34", 7, 0, null),
+                new TimeSlot("2018030805024", teacher5, "2018-03-08 18:41", 7, 0, null),
+                new TimeSlot("2018030805025", teacher5, "2018-03-08 18:48", 7, 0, null),
+                new TimeSlot("2018030805026", teacher5, "2018-03-08 18:55", 7, 0, null),
+                new TimeSlot("2018030805027", teacher5, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030805028", teacher5, "2018-03-08 19:09", 7, 0, null),
+                new TimeSlot("2018030805029", teacher5, "2018-03-08 19:16", 7, 0, null),
+                new TimeSlot("2018030805030", teacher5, "2018-03-08 19:02", 7, 0, null),
+                new TimeSlot("2018030805031", teacher5, "2018-03-08 19:23", 7, 0, null),
+                new TimeSlot("2018030805032", teacher5, "2018-03-08 19:30", 7, 0, null)
+            ];
+            rawTimetable.push(teacher1Time);
+            rawTimetable.push(teacher2Time);
+            rawTimetable.push(teacher3Time);
+            rawTimetable.push(teacher4Time);
+            rawTimetable.push(teacher5Time);
+
+            var timetable = new Array(rawTimetable.length);
+
+            var startTime = new Date("2018-03-08 18:00");
+            var endTime = new Date("2018-03-08 19:10");
+
+            $("#solve").click(function () {
+                pruneTimetable(rawTimetable, startTime, endTime, timetable);
+                prioritizeMeetings(timetable);
+
+                var config = {
+                    "iterations": 100
+                    , "size": 250
+                    , "crossover": 0.9
+                    , "mutation": 0.2
+                    , "skip": 20
+                };
+                var userData = {
+                    "timetable": timetable,
+                    "isScheduleFeasible": isScheduleFeasible
+                };
+                genetic.evolve(config, userData);
+            });
+        });
+    </script>
+
+</body>
+
+</html>
