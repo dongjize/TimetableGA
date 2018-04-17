@@ -119,6 +119,7 @@
             }
             return slots;
         };
+
         genetic.fitness = function (entity) {
             var fitness = 0;
             var timetable = this.userData["timetable"];
@@ -135,9 +136,6 @@
                     last = entity[i];
                 }
             }
-            // console.log(entity);
-            // console.log(first);
-            // console.log(last);
             fitness = 100 / (Math.floor((new Date(last.time) - new Date(first.time)) / 1000 / 60)); // The numerator is manually decided
             return fitness;
         };
@@ -160,7 +158,6 @@
                 .concat(father.slice(ca, cb))
                 .concat(mother.slice(cb, len));
             return [mother, father];
-            // return [son, daughter];
         };
         genetic.mutate = function (entity) {
             var timetable = this.userData["timetable"];
@@ -181,12 +178,8 @@
                 timetable[mutateIndex][randomIndex]
             );
             return isScheduleFeasible(mutatedSchedule) ? mutatedSchedule : entity;
-            // return mutatedSchedule;
         };
         genetic.generation = function (pop, generation, stats) {
-            // console.log(pop);
-            // console.log(pop);
-            // console.log(generation);
         };
 
 
@@ -301,8 +294,6 @@
                 return false;
             }
 
-            // var tempSlots = selectedSlots.slice(0); // clone
-
             // sort the selected slots by time (ascending)
             selectedSlots.sort(function (slot1, slot2) {
                 var value1 = new Date(slot1.time);
@@ -343,7 +334,6 @@
 
         $(document).ready(function () {
 
-            // var teachers = ["Vince", "Julie", "George", "Marjan", "Elizabeth"];
             var teacher1 = new Teacher(1, "Vince", false);
             var teacher2 = new Teacher(2, "Julie", true);
             var teacher3 = new Teacher(3, "George", false);
@@ -547,16 +537,9 @@
 
             var timetable = new Array(rawTimetable.length);
 
-            // var startTime = new Date("2018-03-08 16:00");
-            // var endTime = new Date("2018-03-08 17:03");
-            // console.log(startTime);
-            // console.log(endTime);
-
             $("#solve").click(function () {
                 var startTime = new Date($('#startTime').val());
                 var endTime = new Date($('#endTime').val());
-                // console.log(startTime);
-                // console.log(endTime);
                 if (startTime >= endTime) {
                     console.log("Check your start time and end time.");
                     return;
