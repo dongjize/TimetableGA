@@ -34,36 +34,30 @@
     <script src="js/vendor/modernizr-3.5.0.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
         crossorigin="anonymous"></script>
-    <!-- <script>window.jQuery || document.write('<script src="js/vendor/jquery-3.2.1.min.js"><\/script>')</script> -->
     <script src="js/plugins.js"></script>
     <script src="js/genetic.js"></script>
     <script src="js/genetic-0.1.14.js"></script>
 
+    <nav class="navbar navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">Timetable Scheduling Tool</a>
+    </nav>
+
     <div class="container">
-        <div class="alert alert-primary" role="alert">
-            Timetable Scheduling Tool
-        </div>
         <form>
             <div class="form-group">
-                <label for="exampleFormControlSelect1">Example select</label>
-                <select class="form-control">
-                    <option value="volvo">Volvo</option>
-                    <option value="saab">Saab</option>
-                    <option value="mercedes">Mercedes</option>
-                    <option value="audi">Audi</option>
+                <label for="exampleFormControlSelect1">Select Your Earliest Time to Come: </label>
+                <select class="form-control" id="startTime">
                 </select>
             </div>
             <div class="form-group">
-                <label for="exampleFormControlSelect1">Example select</label>
-                <select class="form-control">
-                    <option value="volvo">Volvo</option>
-                    <option value="saab">Saab</option>
-                    <option value="mercedes">Mercedes</option>
-                    <option value="audi">Audi</option>
+                <label for="exampleFormControlSelect1">Select Your Latest Time to Leave: </label>
+                <select class="form-control" id="endTime">
                 </select>
             </div>
 
             <div class="form-group">
+                Select Your Required Teachers:
+                <br/>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="option1">
                     <label class="form-check-label" for="inlineCheckbox1">Teacher 1</label>
@@ -85,8 +79,10 @@
                     <label class="form-check-label" for="inlineCheckbox3">Teacher 5</label>
                 </div>
             </div>
-            <button class="btn btn-primary col-sm" id="solve" type="button">confirm</button>
+            <button class="btn btn-success col-sm" id="solve" type="button">confirm</button>
         </form>
+
+        <table class="table" id="solution-table"></table>
     </div>
 
     <script>
@@ -109,14 +105,14 @@
 
             var slots = [];
             for (var i = 0; i < timetable.length; i++) {
-                var b = false;
+                var hasAvailable = false; // Whether there're at least one available slots from teacher i.
                 for (var j = 0; j < timetable[i].length; j++) {
                     if (timetable[i][j].status == 0) {
-                        b = true;
+                        hasAvailable = true;
                     }
                 }
                 var slot;
-                if (b) {
+                if (hasAvailable) {
                     slot = recursive(timetable[i], Math.floor(Math.random() * timetable[i].length));
                 }
                 slots.push(slot);
@@ -139,7 +135,10 @@
                     last = entity[i];
                 }
             }
-            fitness = 100 / (Math.floor((new Date(last.time) - new Date(first.time)) / 1000 / 60));
+            // console.log(entity);
+            // console.log(first);
+            // console.log(last);
+            fitness = 100 / (Math.floor((new Date(last.time) - new Date(first.time)) / 1000 / 60)); // The numerator is manually decided
             return fitness;
         };
         genetic.crossover = function (mother, father) {
@@ -160,7 +159,8 @@
                 .slice(0, ca)
                 .concat(father.slice(ca, cb))
                 .concat(mother.slice(cb, len));
-            return [son, daughter];
+            return [mother, father];
+            // return [son, daughter];
         };
         genetic.mutate = function (entity) {
             var timetable = this.userData["timetable"];
@@ -185,6 +185,7 @@
         };
         genetic.generation = function (pop, generation, stats) {
             // console.log(pop);
+            // console.log(pop);
             // console.log(generation);
         };
 
@@ -195,13 +196,30 @@
                     var timetable = this.userData["timetable"];
                     if (timetable[timetable.length - 1][0].teacher.required != true) {
                         timetable.splice(timetable.length - 1, 1);
-                        console.log(timetable);
                         genetic.evolve(this.userData["config"], this.userData["timetable"])
                     } else {
                         console.log("no result!");
                     }
                 } else {
-                    console.log(pop[0]);
+                    $("#solution-table").empty();
+                    $("#solution-table").append(
+                        '<thead>' +
+                        '<tr><th scope = "col">#</th><th scope="col">Teacher</th>'
+                        + '<th scope="col">Time</th>'
+                        + '<th scope="col">Priority</th></tr>'
+                        + '</thead>'
+                    );
+                    $("#solution-table").append('<tbody>');
+                    for (var i = 0; i < pop[0]['entity'].length; i++) {
+                        var slot = pop[0]['entity'][i];
+                        $("#solution-table").append(
+                            '<tr><th scope="row">' + (i + 1) + '</th><td>'
+                            + slot.teacher.name + '</td><td>'
+                            + new Date(slot.time).toLocaleString() + '</td><td>'
+                            + (slot.teacher.required ? 'Required' : 'Optional') + '</td></tr>'
+                        );
+                    }
+                    $("#solution-table").append('</tbody>');
                 }
             }
         };
@@ -221,6 +239,7 @@
                     break;
                 }
             }
+            console.log(startIndex);
 
             for (var j = rawTimetable[0].length - 1; j > startIndex - 1; j--) {
                 if (endTime >= rawTimetable[0][j].time && (endTime - rawTimetable[0][j].time) / 1000 / 60 <= 7) {
@@ -232,6 +251,7 @@
             for (idx = 0; idx < rawTimetable.length; idx++) {
                 timetable[idx] = rawTimetable[idx].slice(startIndex, endIndex);
             }
+            console.log(timetable);
         }
 
         /**
@@ -271,8 +291,6 @@
         function isScheduleFeasible(selectedSlots, timetable) {
             for (var i = 0; i < selectedSlots.length; i++) {
                 if (selectedSlots[i] == undefined) {
-                    // selectedSlots.splice(i, 1);
-                    // break;
                     return false;
                 }
             }
@@ -282,6 +300,8 @@
             if (timetable == undefined) {
                 return false;
             }
+
+            // var tempSlots = selectedSlots.slice(0); // clone
 
             // sort the selected slots by time (ascending)
             selectedSlots.sort(function (slot1, slot2) {
@@ -323,7 +343,7 @@
 
         $(document).ready(function () {
 
-            var teachers = ["Vince", "Julie", "George", "Marjan", "Elizabeth"];
+            // var teachers = ["Vince", "Julie", "George", "Marjan", "Elizabeth"];
             var teacher1 = new Teacher(1, "Vince", false);
             var teacher2 = new Teacher(2, "Julie", true);
             var teacher3 = new Teacher(3, "George", false);
@@ -512,18 +532,42 @@
             rawTimetable.push(teacher4Time);
             rawTimetable.push(teacher5Time);
 
+            for (var i = 0; i < rawTimetable[0].length; i++) {
+                var time = new Date(rawTimetable[0][i].time);
+                $('#startTime').append('<option value="' + time + '">' + time.toLocaleString() + '</option>');
+                $('#endTime').append('<option value="' + time + '">' + time.toLocaleString() + '</option>');
+            }
+
+            for (var i = 0; i < rawTimetable.length; i++) {
+                var teacher = rawTimetable[i][0].teacher;
+                if (teacher != undefined) {
+                    var tName = teacher.name;
+                }
+            }
+
             var timetable = new Array(rawTimetable.length);
 
-            var startTime = new Date("2018-03-08 18:00");
-            var endTime = new Date("2018-03-08 18:30");
+            // var startTime = new Date("2018-03-08 16:00");
+            // var endTime = new Date("2018-03-08 17:03");
+            // console.log(startTime);
+            // console.log(endTime);
 
             $("#solve").click(function () {
+                var startTime = new Date($('#startTime').val());
+                var endTime = new Date($('#endTime').val());
+                // console.log(startTime);
+                // console.log(endTime);
+                if (startTime >= endTime) {
+                    console.log("Check your start time and end time.");
+                    return;
+                }
+
                 pruneTimetable(rawTimetable, startTime, endTime, timetable);
                 prioritizeMeetings(timetable);
 
                 var config = {
                     "iterations": 100
-                    , "size": 250
+                    , "size": 500
                     , "crossover": 0.9
                     , "mutation": 0.2
                     , "skip": 20
