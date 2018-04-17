@@ -73,7 +73,16 @@
 
             var slots = [];
             for (var i = 0; i < timetable.length; i++) {
-                var slot = recursive(timetable[i], Math.floor(Math.random() * timetable[i].length));
+                var b = false;
+                for (var j = 0; j < timetable[i].length; j++) {
+                    if (timetable[i][j].status == 0) {
+                        b = true;
+                    }
+                }
+                var slot;
+                if (b) {
+                    slot = recursive(timetable[i], Math.floor(Math.random() * timetable[i].length));
+                }
                 slots.push(slot);
             }
             return slots;
@@ -142,10 +151,19 @@
             // console.log(pop);
             // console.log(generation);
         };
+
+
         genetic.notification = function (pop, generation, stats, isFinished) {
             if (isFinished) {
                 if (pop[0]["fitness"] == 0) {
-                    console.log("no result!!!");
+                    var timetable = this.userData["timetable"];
+                    if (timetable[timetable.length - 1][0].teacher.required != true) {
+                        timetable.splice(timetable.length - 1, 1);
+                        console.log(timetable);
+                        genetic.evolve(this.userData["config"], this.userData["timetable"])
+                    } else {
+                        console.log("no result!");
+                    }
                 } else {
                     console.log(pop[0]);
                 }
@@ -461,7 +479,7 @@
             var timetable = new Array(rawTimetable.length);
 
             var startTime = new Date("2018-03-08 18:00");
-            var endTime = new Date("2018-03-08 19:10");
+            var endTime = new Date("2018-03-08 18:30");
 
             $("#solve").click(function () {
                 pruneTimetable(rawTimetable, startTime, endTime, timetable);
@@ -476,8 +494,9 @@
                 };
                 var userData = {
                     "timetable": timetable,
-                    "isScheduleFeasible": isScheduleFeasible
+                    "isScheduleFeasible": isScheduleFeasible,
                 };
+
                 genetic.evolve(config, userData);
             });
         });
