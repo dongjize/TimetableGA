@@ -19,6 +19,30 @@
 </head>
 
 <body>
+    <!-- Modal -->
+    <!-- <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Alert</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    There're no feasible solutions. Please change your available time.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div> -->
+
+
+
+
+
     <!--[if lte IE 9]>
             <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
         <![endif]-->
@@ -43,6 +67,15 @@
     </nav>
 
     <div class="container">
+        <div id="alert">
+            <!-- <div class="alert alert-warning" id="no-result">
+                <a href="#" class="close" data-dismiss="alert">
+                    &times;
+                </a>
+                <strong>Alert</strong>There're no feasible solutions. Please change your available time.
+            </div> -->
+        </div>
+
         <form>
             <div class="form-group">
                 <label for="exampleFormControlSelect1">Select Your Earliest Time to Come: </label>
@@ -191,7 +224,7 @@
                         timetable.splice(timetable.length - 1, 1);
                         genetic.evolve(this.userData["config"], this.userData["timetable"])
                     } else {
-                        console.log("no result!");
+                        $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>No solutions. Try changing your time. </div>')
                     }
                 } else {
                     $("#solution-table").empty();
@@ -243,7 +276,6 @@
             for (idx = 0; idx < rawTimetable.length; idx++) {
                 timetable[idx] = rawTimetable[idx].slice(startIndex, endIndex);
             }
-            console.log(timetable);
         }
 
         /**
@@ -536,11 +568,14 @@
 
             var timetable = new Array(rawTimetable.length);
 
+            // $("#exampleModal").modal({});
+
             $("#solve").click(function () {
+
                 var startTime = new Date($('#startTime').val());
                 var endTime = new Date($('#endTime').val());
                 if (startTime >= endTime) {
-                    console.log("Check your start time and end time.");
+                    $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>Check your start time and end time. </div>')
                     return;
                 }
 
