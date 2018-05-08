@@ -34,10 +34,12 @@
     <script src="js/vendor/modernizr-3.5.0.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
         crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.10/lodash.min.js"></script>
+
     <script src="js/plugins.js"></script>
     <script src="js/genetic.js"></script>
     <script src="js/genetic-0.1.14.js"></script>
-    <script src="js/newdata.js"></script>
+    <script src="js/180428.js"></script>
     <!-- <script src="js/haha.js"></script> -->
 
     <nav class="navbar navbar-dark bg-primary">
@@ -54,7 +56,7 @@
             </div> -->
         </div>
 
-        <form>
+        <form style="margin-top: 20px;">
             <div class="form-group">
                 <label for="exampleFormControlSelect1">Select Your Earliest Time to Come: </label>
                 <select class="form-control" id="startTime">
@@ -84,8 +86,7 @@
 
         genetic.seed = function () {
             var dataset = this.userData["dataset"];
-            var timetable = dataset.teacherSessions;
-            console.log(timetable);
+            var timetable = this.userData["timetable"];
             if (timetable == undefined) {
                 return;
             }
@@ -105,7 +106,7 @@
         genetic.fitness = function (entity) {
             var fitness = 0;
             var dataset = this.userData["dataset"];
-            var timetable = dataset.teacherSessions;
+            var timetable = this.userData["timetable"];
             var startTime = this.userData["startTime"];
             var endTime = this.userData["endTime"];
             var isScheduleFeasible = this.userData["isScheduleFeasible"];
@@ -126,7 +127,7 @@
         };
         genetic.crossover = function (mother, father) {
             var dataset = this.userData["dataset"];
-            var timetable = dataset.teacherSessions;
+            var timetable = this.userData["timetable"];
             var len = timetable.length;
             var ca = Math.floor(Math.random() * len);
             var cb = Math.floor(Math.random() * len);
@@ -147,7 +148,7 @@
         };
         genetic.mutate = function (entity) {
             var dataset = this.userData["dataset"];
-            var timetable = dataset.teacherSessions;
+            var timetable = this.userData["timetable"];
             var startTime = this.userData["startTime"];
             var endTime = this.userData["endTime"];
             var isScheduleFeasible = this.userData["isScheduleFeasible"];
@@ -174,17 +175,21 @@
 
         genetic.notification = function (pop, generation, stats, isFinished) {
             if (isFinished) {
+                if ($('#alert').html() != null) {
+                    $('#alert').empty();
+                }
+                $("#solution-table").empty();
+
                 if (pop[0]["fitness"] == 0) {
                     var dataset = this.userData["dataset"];
-                    var timetable = dataset.teacherSessions;
+                    var timetable = this.userData["timetable"];
                     if (timetable[timetable.length - 1].required != 1) {
                         timetable.splice(timetable.length - 1, 1);
-                        genetic.evolve(this.userData["config"], this.userData["timetable"])
+                        genetic.evolve(this.config, this.userData);
                     } else {
-                        $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>No solutions. Try changing your time. </div>')
+                        $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>No solutions. Try changing your time. </div>');
                     }
                 } else {
-                    $("#solution-table").empty();
                     $("#solution-table").append(
                         '<thead>' +
                         '<tr><th scope = "col">#</th><th scope="col">Teacher</th>'
@@ -215,7 +220,7 @@
         function prioritizeMeetings(timetable) {
             timetable.sort(function (t1, t2) {
                 if (t1.required !== t2.required) {
-                    return t2.required - t1.required; // decend
+                    return t2.required - t1.required;
                 } else {
                     return t2.sessions.length - t1.sessions.length;
                 }
@@ -233,7 +238,14 @@
             return timeArr;
         }
 
+
         function modifyRequiredTeachers(timetable, requiredTeacherIds) {
+            for (var haha = 0; haha < timetable.length; haha++) {
+                timetable[haha].required = 0;
+                for (var heihei = 0; heihei < timetable[haha].countSessions; heihei++) {
+                    timetable[haha].sessions[heihei].required = 0;
+                }
+            }
             for (var idx = 0; idx < requiredTeacherIds.length; idx++) {
                 for (var i = 0; i < timetable.length; i++) {
                     if (timetable[i].teacher.userId == requiredTeacherIds[idx]) {
@@ -274,7 +286,8 @@
 
             var start = new Date(startTime);
             var end = new Date(endTime);
-            if (start > new Date(selectedSessions[0].sessionStartDateTimeLocal) || end < new Date(selectedSessions[selectedSessions.length - 1].sessionStartDateTimeLocal)) {
+            if (start > new Date(selectedSessions[0].sessionStartDateTimeLocal) 
+            || end < new Date(selectedSessions[selectedSessions.length - 1].sessionEndDateTimeLocal)) {
                 return false;
             }
             for (var i = 1; i < selectedSessions.length; i++) {
@@ -287,9 +300,12 @@
             return true;
         }
 
+
+
         $(document).ready(function () {
             var participantId = dataset.participantId;
-            var timetable = dataset.teacherSessions;
+            // var timetable = dataset.teacherSessions.splice(0);
+            var timetable = _.cloneDeep(dataset.teacherSessions);
 
             var earliestStart = timetable[0].sessions[0].sessionStartDateTimeLocal;
             var latestEnd = timetable[0].sessions[timetable[0].sessions.length - 1].sessionStartDateTimeLocal;;
@@ -320,6 +336,8 @@
             }
 
             $("#solve").click(function () {
+                // timetable = dataset.teacherSessions.splice(0);
+                timetable = _.cloneDeep(dataset.teacherSessions);
 
                 var startTime = new Date($('#startTime').val());
                 var endTime = new Date($('#endTime').val());
@@ -333,24 +351,23 @@
                 checked.each(function () {
                     requiredTeachers.push($(this).val());
                 })
-
                 modifyRequiredTeachers(timetable, requiredTeachers);
                 prioritizeMeetings(timetable);
 
                 var config = {
                     "iterations": 100
-                    , "size": 200
+                    , "size": 500
                     , "crossover": 0.9
                     , "mutation": 0.2
                     , "skip": 20
                 };
                 var userData = {
                     "dataset": dataset,
+                    "timetable": timetable,
                     "isScheduleFeasible": isScheduleFeasible,
                     "startTime": startTime,
                     "endTime": endTime
                 };
-
                 genetic.evolve(config, userData);
             });
         });
