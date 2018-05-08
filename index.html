@@ -39,7 +39,7 @@
     <script src="js/plugins.js"></script>
     <script src="js/genetic.js"></script>
     <script src="js/genetic-0.1.14.js"></script>
-    <script src="js/180428.js"></script>
+    <script src="js/180428_1.js"></script>
     <!-- <script src="js/haha.js"></script> -->
 
     <nav class="navbar navbar-dark bg-primary">
@@ -286,8 +286,8 @@
 
             var start = new Date(startTime);
             var end = new Date(endTime);
-            if (start > new Date(selectedSessions[0].sessionStartDateTimeLocal) 
-            || end < new Date(selectedSessions[selectedSessions.length - 1].sessionEndDateTimeLocal)) {
+            if (start > new Date(selectedSessions[0].sessionStartDateTimeLocal)
+                || end < new Date(selectedSessions[selectedSessions.length - 1].sessionEndDateTimeLocal)) {
                 return false;
             }
             for (var i = 1; i < selectedSessions.length; i++) {
@@ -355,11 +355,11 @@
                 prioritizeMeetings(timetable);
 
                 var config = {
-                    "iterations": 100
-                    , "size": 500
-                    , "crossover": 0.9
-                    , "mutation": 0.2
-                    , "skip": 20
+                    "iterations": 50,
+                    "size": 1000,
+                    "crossover": 0.9,
+                    "mutation": 0.2,
+                    "skip": 20
                 };
                 var userData = {
                     "dataset": dataset,
