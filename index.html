@@ -20,10 +20,6 @@
 </head>
 
 <body>
-    <!--[if lte IE 9]>
-            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
-        <![endif]-->
-
     <!-- Add your site or application content here -->
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
         crossorigin="anonymous"></script>
@@ -43,7 +39,7 @@
     <script src="js/180428_1.js"></script>
     <!-- <script src="js/haha.js"></script> -->
 
-    <nav class="navbar navbar-dark bg-primary">
+    <nav class="navbar navbar-dark" style="background-color: #bb29bb">
         <a class="navbar-brand" href="#">Timetable Scheduling Tool</a>
     </nav>
 
@@ -73,7 +69,7 @@
                 Select Your Required Teachers:
                 <br/>
             </div>
-            <button class="btn btn-success col-sm" id="solve" type="button">confirm</button>
+            <button class="btn col-sm" style="background-color: #2BB6DE; color: #ffffff" id="solve" type="button">Confirm</button>
         </form>
 
         <table class="table" id="solution-table"></table>
@@ -172,7 +168,6 @@
         };
         genetic.generation = function (pop, generation, stats) {
         };
-
 
         genetic.notification = function (pop, generation, stats, isFinished) {
             if (isFinished) {
