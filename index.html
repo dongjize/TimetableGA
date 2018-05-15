@@ -185,29 +185,49 @@
                         $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>No solutions. Try changing your time. </div>');
                     }
                 } else {
-                    $("#solution-table").append(
-                        '<thead>' +
-                        '<tr><th scope = "col">#</th><th scope="col">Teacher</th>'
-                        + '<th scope="col">Time</th>'
-                        + '<th scope="col">Priority</th></tr>'
-                        + '</thead>'
-                    );
-                    $("#solution-table").append('<tbody>');
-                    for (var i = 0; i < pop[0]['entity'].length; i++) {
-                        var session = pop[0]['entity'][i];
-                        $("#solution-table").append(
-                            '<tr><th scope="row">' + (i + 1) + '</th><td>'
-                            + session.teacher.userFullName + '</td><td>'
-                            + new Date(session.sessionStartDateTimeLocal).toLocaleString() + '</td><td>'
-                            + (session.required == 1 ? "Required" : "Optional") + '</td></tr>'
-                        );
-                    }
-                    $("#solution-table").append('</tbody>');
-                    $('#alert').empty();
+                    // including: participantObjectId(primarily known), sessionIds, ...
+                    var resultJson = {};
+                    var sessionIds = [];
+                    $.each(pop[0]['entity'], function () {
+                        sessionIds.push(this.sessionId);
+                    });
+                    resultJson["sessionIds"] = sessionIds;
+                    $.ajax({
+                        url: "http://127.0.0.1:8000/timetable_post",
+                        type: 'POST',
+                        headers: { 'Access-Control-Allow-Origin': '*' },
+                        data: JSON.stringify(resultJson),
+                        datatype: 'json',
+                        crossDomain: true,
+                        success: function (data) {
+                            $("#solution-table").append(
+                                '<thead>' +
+                                '<tr><th scope = "col">#</th><th scope="col">Teacher</th>'
+                                + '<th scope="col">Time</th>'
+                                + '<th scope="col">Priority</th></tr>'
+                                + '</thead>'
+                            );
+                            $("#solution-table").append('<tbody>');
+                            for (var i = 0; i < pop[0]['entity'].length; i++) {
+                                var session = pop[0]['entity'][i];
+                                $("#solution-table").append(
+                                    '<tr><th scope="row">' + (i + 1) + '</th><td>'
+                                    + session.teacher.userFullName + '</td><td>'
+                                    + new Date(session.sessionStartDateTimeLocal).toLocaleString() + '</td><td>'
+                                    + (session.required == 1 ? "Required" : "Optional") + '</td></tr>'
+                                );
+                            }
+                            $("#solution-table").append('</tbody>');
+                            $('#alert').empty();
+
+                        },
+                        error: function () {
+                            console.log("error");
+                        },
+                    });
+
                 }
 
-                // TODO : send the result to server! 
-                // including: participantObjectId(primarily known), sessionIds, 
             }
         };
 
@@ -234,10 +254,10 @@
 
 
         function modifyRequiredTeachers(timetable, requiredTeacherIds) {
-            for (var haha = 0; haha < timetable.length; haha++) {
-                timetable[haha].required = 0;
-                for (var heihei = 0; heihei < timetable[haha].countSessions; heihei++) {
-                    timetable[haha].sessions[heihei].required = 0;
+            for (var i = 0; i < timetable.length; i++) {
+                timetable[i].required = 0;
+                for (var j = 0; j < timetable[i].countSessions; j++) {
+                    timetable[i].sessions[j].required = 0;
                 }
             }
             for (var idx = 0; idx < requiredTeacherIds.length; idx++) {
@@ -300,6 +320,7 @@
                 url: "http://127.0.0.1:8000/timetable",
                 headers: { 'Access-Control-Allow-Origin': '*' },
                 crossDomain: true,
+                // datatype: 'jsonp',
                 success: function (dataset) {
                     var timetable = _.cloneDeep(dataset.teacherSessions);
                     var earliestStart = timetable[0].sessions[0].sessionStartDateTimeLocal;
@@ -372,11 +393,8 @@
                 },
                 error: function () {
                     console.log("error")
-                },
-                datatype: 'jsonp'
+                }
             });
-
-
 
         });
     </script>
