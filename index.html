@@ -40,8 +40,7 @@
     <script src="js/plugins.js"></script>
     <script src="js/genetic.js"></script>
     <script src="js/genetic-0.1.14.js"></script>
-    <script src="js/180428_1.js"></script>
-    <!-- <script src="js/haha.js"></script> -->
+    <!-- <script src="js/180428_1.js"></script> -->
 
     <nav class="navbar navbar-dark bg-primary">
         <a class="navbar-brand" href="#">Timetable Scheduling Tool</a>
@@ -301,78 +300,89 @@
         }
 
 
-
         $(document).ready(function () {
-            var participantId = dataset.participantId;
-            // var timetable = dataset.teacherSessions.splice(0);
-            var timetable = _.cloneDeep(dataset.teacherSessions);
+            $.ajax({
+                url: "http://127.0.0.1:8000/timetable",
+                headers: { 'Access-Control-Allow-Origin': '*' },
+                crossDomain: true,
+                success: function (dataset) {
+                    var timetable = _.cloneDeep(dataset.teacherSessions);
+                    var earliestStart = timetable[0].sessions[0].sessionStartDateTimeLocal;
+                    var latestEnd = timetable[0].sessions[timetable[0].sessions.length - 1].sessionStartDateTimeLocal;
 
-            var earliestStart = timetable[0].sessions[0].sessionStartDateTimeLocal;
-            var latestEnd = timetable[0].sessions[timetable[0].sessions.length - 1].sessionStartDateTimeLocal;;
+                    for (var i = 0; i < timetable.length; i++) {
+                        if (earliestStart > timetable[i].sessions[0].sessionStartDateTimeLocal) {
+                            earliestStart = timetable[i].sessions[0].sessionStartDateTimeLocal;
+                        }
+                        if (latestEnd < timetable[i].sessions[timetable[i].sessions.length - 1].sessionStartDateTimeLocal) {
+                            latestEnd = timetable[i].sessions[timetable[i].sessions.length - 1].sessionStartDateTimeLocal;
+                        }
+                    }
 
-            for (var i = 0; i < timetable.length; i++) {
-                if (earliestStart > timetable[i].sessions[0].sessionStartDateTimeLocal) {
-                    earliestStart = timetable[i].sessions[0].sessionStartDateTimeLocal;
-                }
-                if (latestEnd < timetable[i].sessions[timetable[i].sessions.length - 1].sessionStartDateTimeLocal) {
-                    latestEnd = timetable[i].sessions[timetable[i].sessions.length - 1].sessionStartDateTimeLocal;
-                }
-            }
+                    var timeArr = generateTimeSelections(earliestStart, latestEnd, dataset.sessionInterval);
+                    for (var i = 0; i < timeArr.length; i++) {
+                        $('#startTime').append('<option value="' + timeArr[i] + '">' + timeArr[i].toLocaleString() + '</option>');
+                        $('#endTime').append('<option value="' + timeArr[i] + '">' + timeArr[i].toLocaleString() + '</option>');
+                    }
 
-            var timeArr = generateTimeSelections(earliestStart, latestEnd, dataset.sessionInterval);
-            for (var i = 0; i < timeArr.length; i++) {
-                $('#startTime').append('<option value="' + timeArr[i] + '">' + timeArr[i].toLocaleString() + '</option>');
-                $('#endTime').append('<option value="' + timeArr[i] + '">' + timeArr[i].toLocaleString() + '</option>');
-            }
+                    $('#endTime').get(0).selectedIndex = timeArr.length - 1;
 
-            $('#endTime').get(0).selectedIndex = timeArr.length - 1;
+                    for (var i = 0; i < dataset.countTeachers; i++) {
+                        var teacher = timetable[i].teacher;
+                        $('#teacherGroup').append('<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="teacher" id="teacherCB' + i + '" value="' + teacher.userId + '"><label class="form-check-label" for="teacherCB' + i + '">' + teacher.userFullName + '</label></div>')
+                        if (timetable[i].required == 1) {
+                            $("#teacherCB" + i).attr("checked", "checked").attr("disabled", true);
+                        }
+                    }
 
-            for (var i = 0; i < dataset.countTeachers; i++) {
-                var teacher = timetable[i].teacher;
-                $('#teacherGroup').append('<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="teacher" id="teacherCB' + i + '" value="' + teacher.userId + '"><label class="form-check-label" for="teacherCB' + i + '">' + teacher.userFullName + '</label></div>')
-                if (timetable[i].required == 1) {
-                    $("#teacherCB" + i).attr("checked", "checked").attr("disabled", true);
-                }
-            }
+                    $("#solve").click(function () {
+                        $('#alert').empty();
+                        $('#alert').append('<div class="alert alert-warning" id="processing">Processing... Please wait for a second</div>')
 
-            $("#solve").click(function () {
-                $('#alert').empty();
-                $('#alert').append('<div class="alert alert-warning" id="processing">Processing... Please wait for a second</div>')
+                        timetable = _.cloneDeep(dataset.teacherSessions);
 
-                timetable = _.cloneDeep(dataset.teacherSessions);
+                        var startTime = new Date($('#startTime').val());
+                        var endTime = new Date($('#endTime').val());
+                        if (startTime >= endTime) {
+                            $('#alert').empty();
+                            $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>Check your start time and end time. </div>')
+                            return;
+                        }
 
-                var startTime = new Date($('#startTime').val());
-                var endTime = new Date($('#endTime').val());
-                if (startTime >= endTime) {
-                    $('#alert').empty();
-                    $('#alert').append('<div class="alert alert-warning" id="no-result"><a href="#" class="close" data-dismiss="alert">&times;</a><strong>Alert: </strong>Check your start time and end time. </div>')
-                    return;
-                }
+                        var checked = $("input[name='teacher']:checked");
+                        var requiredTeachers = [];
+                        checked.each(function () {
+                            requiredTeachers.push($(this).val());
+                        })
+                        modifyRequiredTeachers(timetable, requiredTeachers);
+                        prioritizeMeetings(timetable);
 
-                var checked = $("input[name='teacher']:checked");
-                var requiredTeachers = [];
-                checked.each(function () {
-                    requiredTeachers.push($(this).val());
-                })
-                modifyRequiredTeachers(timetable, requiredTeachers);
-                prioritizeMeetings(timetable);
+                        var config = {
+                            "iterations": 50,
+                            "size": 1000,
+                            "crossover": 0.9,
+                            "mutation": 0.2,
+                            "skip": 20
+                        };
+                        var userData = {
+                            "dataset": dataset,
+                            "timetable": timetable,
+                            "isScheduleFeasible": isScheduleFeasible,
+                            "startTime": startTime,
+                            "endTime": endTime
+                        };
+                        genetic.evolve(config, userData);
+                    });
 
-                var config = {
-                    "iterations": 50,
-                    "size": 1000,
-                    "crossover": 0.9,
-                    "mutation": 0.2,
-                    "skip": 20
-                };
-                var userData = {
-                    "dataset": dataset,
-                    "timetable": timetable,
-                    "isScheduleFeasible": isScheduleFeasible,
-                    "startTime": startTime,
-                    "endTime": endTime
-                };
-                genetic.evolve(config, userData);
+                },
+                error: function () {
+                    console.log("error")
+                },
+                datatype: 'jsonp'
             });
+
+
+
         });
     </script>
 
